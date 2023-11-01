@@ -1,6 +1,9 @@
 "use strict";
 
-const LOG_ACTIONS = [
+/**
+ * The resources for polices that define these permissions will be 'simplified'
+ */
+const LOG_ACTIONS_TO_SIMPLIFY = [
   "logs:CreateLogStream",
   "logs:CreateLogGroup",
   "logs:PutLogEvents",
@@ -19,11 +22,10 @@ class SimplifyDefaultExecRole {
 /**
  * By default serverless specifies each CloudWatch log group ARN individually in a Stack's Lambda IAM role. For every large stacks, this can cause the role
  * to exceed the maximum allowed size of 10240 bytes. This code reduces the size of the generated lambda role by replacing the resource list with a single
- * ARN to grants write access to _all_ log groups that are part of the same region and account. 
- * 
+ * ARN to grants write access to _all_ log groups that are part of the same region and account.
+ *
  * arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
- * 
- * 
+ *
  * @param {*} serverless
  */
 function simplifyBaseIAMLogGroups(serverless) {
@@ -39,33 +41,38 @@ function simplifyBaseIAMLogGroups(serverless) {
     // parse all existing policies from the lambda role
     const policies = resourceSection.IamRoleLambdaExecution.Properties.Policies;
 
-    // find the index of the policy that defines CloudWatch permissions for each Lambda
-    const cloudWatchLogPolicyIndex = policies.findIndex((p) => {
+    // find all indexes of policies that define permissions for CloudWatch log groups
+    const cloudWatchLogPolicyIndexes = policies.reduce((acc, p, idx) => {
       if (
         p.PolicyDocument &&
         p.PolicyDocument.Statement &&
         p.PolicyDocument.Statement.Effect === "Allow" &&
-        Array.isArray(p.PolicyDocument.Statement.Action)
+        Array.isArray(p.PolicyDocument.Statement.Action) &&
+        p.PolicyDocument.Statement.Action.every((action) =>
+          LOG_ACTIONS_TO_SIMPLIFY.includes(action)
+        )
       ) {
-        return policy.PolicyDocument.Statement.Action.every((action) =>
-          LOG_ACTIONS.includes(action)
-        );
+        acc.push(idx);
       }
-    });
 
-    if (cloudWatchLogPolicyIndex > -1) {
-      policies[cloudWatchLogPolicyIndex] = {
-        ...policies[cloudWatchLogPolicyIndex],
-        /*
-          Apply the permission to *any* log group part of the same region and account
-        */
-        Resource: [
-          {
-            "Fn::Sub":
-              "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*",
-          },
-        ],
-      };
+      return acc;
+    }, []);
+
+    if (cloudWatchLogPolicyIndexes.length > 0) {
+      for (const idx of cloudWatchLogPolicyIndexes) {
+        policies[idx] = {
+          ...policies[idx],
+          /*
+            Apply the permission to *any* log group part of the same region and account
+          */
+          Resource: [
+            {
+              "Fn::Sub":
+                "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*",
+            },
+          ],
+        };
+      }
 
       resourceSection.IamRoleLambdaExecution.Properties.Policies = policies;
     }
