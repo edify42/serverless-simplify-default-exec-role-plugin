@@ -17,9 +17,9 @@ class SimplifyDefaultExecRole {
 }
 
 /**
- * By default serverless specifies each lambda ARN individually in a Stack's Lambda IAM role. For every large stacks, this can cause the role
- * to exceed the maximum allowed size of 10240 bytes. This code reduces the size of the generated lambda role by allowing ANY lambda part 
- * of the _same_ AWS account and Region write access to CloudWatch by replacing the Resources array of the policy with:
+ * By default serverless specifies each CloudWatch log group ARN individually in a Stack's Lambda IAM role. For every large stacks, this can cause the role
+ * to exceed the maximum allowed size of 10240 bytes. This code reduces the size of the generated lambda role by replacing the resource list with a single
+ * ARN to grants write access to _all_ log groups that are part of the same region and account. 
  * 
  * arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
  * 
@@ -57,7 +57,7 @@ function simplifyBaseIAMLogGroups(serverless) {
       policies[cloudWatchLogPolicyIndex] = {
         ...policies[cloudWatchLogPolicyIndex],
         /*
-          Replace all individual ARNs with a single ARN allowing ANY Lambda part of the same region and account to log to CloudWatch
+          Apply the permission to *any* log group part of the same region and account
         */
         Resource: [
           {
