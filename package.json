@@ -1,12 +1,10 @@
 {
-  "name": "@shelf/serverless-simplify-default-exec-role-plugin",
-  "version": "0.0.2",
+  "name": "@woebot/serverless-simplify-default-exec-role-plugin",
+  "version": "1.0.0",
   "description": "serverless-simplify-default-exec-role-plugin",
   "license": "MIT",
   "author": {
-    "name": "Vlad Holubiev",
-    "email": "vlad@shelf.io",
-    "url": "https://shelf.io"
+    "name": "Woebot Health Engineering Team"
   },
   "main": "index.js",
   "files": [
