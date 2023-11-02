@@ -1,15 +1,17 @@
 # serverless-simplify-default-exec-role-plugin
 
-> Fixes "IamRoleLambdaExecution - Maximum policy size of 10240 bytes exceeded" error
+** This is a fork of [serverless-simplify-default-exec-role-plugin](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin) by [shelfio](https://github.com/shelfio) **
 
-This plugin works by modifying the Cloudformation stack before deployment.
+A quick solution for the error `Maximum policy size of 10240 bytes exceeded` error.
 
-It searches for the `IamRoleLambdaExecution` resource and modifies the only policy attached to this role.
+- This plugin modifies the `IamRoleLambdaExecution` policy to reduce its size.  
+- Unlike the [original version](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin), this maintains any custom IAM statements attached to the Lambda role. 
+- It also doesn't collapse `"logs:CreateLogStream"`, `"logs:CreateLogGroup"`, and `"logs:PutLogEvents"` permissions into the same IAM statement.
 
-## Install
+## Installation
 
 ```
-$ yarn add --dev @shelf/serverless-simplify-default-exec-role-plugin
+$ npm install --dev @woebot/serverless-simplify-default-exec-role-plugin
 ```
 
 ## Usage
@@ -18,18 +20,19 @@ In your `serverless.yml` file:
 
 ```yaml
 plugins:
-  - '@shelf/serverless-simplify-default-exec-role-plugin'
+  - "@woebot/serverless-simplify-default-exec-role-plugin"
 ```
 
-## Explanation
+## More info
 
-By default, Serverless framework creates such role:
+By default the Serverless framework adds something like the IAM statement below in order to allow write access to CloudWatch log groups that are part of the deployment stack. For every large stacks, this can cause the role to exceed the maximum allowed size of 10240 bytes. This plugin reduces the size of the generated lambda role by replacing the resource list with a single ARN to grants write access to _all_ log groups that are part of the same region and account.
 
+### Before
 ```json5
 {
-  Effect: "Allow",
-  Action: ["logs:CreateLogStream", "logs:CreateLogGroup"],
-  Resource: [
+  "Effect": "Allow",
+  "Action": ["logs:CreateLogStream", "logs:CreateLogGroup"],
+  "Resource": [
     {
       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/production-users-createUser:*",
     },
@@ -39,20 +42,18 @@ By default, Serverless framework creates such role:
     {
       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/production-users-deleteUser:*",
     },
-    // dozens of identical lines
+    // ... and so on, for each lambda function that logs to cloudwatch
   ],
 }
 ```
 
-When you reach a certain project size, deployment will fail since this role will exceed 10 KB limit.
-
-This plugin simplifies the default execution role to smth like this:
+### After
 
 ```json5
 {
-  Effect: "Allow",
-  Action: ["logs:CreateLogStream", "logs:CreateLogGroup"],
-  Resource: [
+  "Effect": "Allow",
+  "Action": ["logs:CreateLogStream", "logs:CreateLogGroup"],
+  "Resource": [
     {
       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*",
     },
@@ -60,15 +61,6 @@ This plugin simplifies the default execution role to smth like this:
 }
 ```
 
-## Publish
-
-```sh
-$ git checkout master
-$ yarn version
-$ yarn publish
-$ git push origin master --tags
-```
-
 ## License
 
-MIT © [Shelf](https://shelf.io)
+MIT ©
