@@ -2,11 +2,11 @@
 
 ** This is a fork of [serverless-simplify-default-exec-role-plugin](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin) by [shelfio](https://github.com/shelfio) **
 
-> Fixes "IamRoleLambdaExecution - Maximum policy size of 10240 bytes exceeded" error
+A quick solution for the error: `IamRoleLambdaExecution - Maximum policy size of 10240 bytes exceeded`
 
 This plugin works by modifying the Cloudformation stack before deployment.
 
-It searches for the `IamRoleLambdaExecution` resource and modifies the policy attached to this role. Unlike the original version, this maintains any custom IAM polices attached to the Lambda role. 
+It searches for the `IamRoleLambdaExecution` resource and modifies the policy attached to this role. Unlike the original version, this maintains any custom IAM polices attached to the Lambda role. It also doesn't collapse `"logs:CreateLogStream"`, `"logs:CreateLogGroup"`, and `"logs:PutLogEvents"` permissions into the same IAM statement.
 
 ## Install
 
@@ -20,7 +20,7 @@ In your `serverless.yml` file:
 
 ```yaml
 plugins:
-  - '@woebot/serverless-simplify-default-exec-role-plugin'
+  - "@woebot/serverless-simplify-default-exec-role-plugin"
 ```
 
 ## Explanation
@@ -46,15 +46,13 @@ By default, Serverless framework creates such role:
 }
 ```
 
-When you reach a certain project size, deployment will fail since this role will exceed 10 KB limit.
-
-This plugin simplifies the default execution role to smth like this:
+This plugin simplifies the statement (while leaving any non `logs` actions unaltered) to:
 
 ```json5
 {
-  Effect: "Allow",
-  Action: ["logs:CreateLogStream", "logs:CreateLogGroup"],
-  Resource: [
+  "Effect": "Allow",
+  "Action": ["logs:CreateLogStream", "logs:CreateLogGroup"],
+  "Resource": [
     {
       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*",
     },
@@ -64,4 +62,4 @@ This plugin simplifies the default execution role to smth like this:
 
 ## License
 
-MIT © [Shelf](https://shelf.io)
+MIT ©
