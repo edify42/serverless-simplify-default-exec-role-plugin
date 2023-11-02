@@ -1,13 +1,26 @@
 "use strict";
 
 /**
- * The resources for polices that define these permissions will be 'simplified'
+ * Check if a policy statement item meets the criteria to be simplified
+ *
+ * @param {*} s Policy Statement entry
+ * @returns {boolean} true when the statement should be simplified
  */
-const LOG_ACTIONS_TO_SIMPLIFY = [
-  "logs:CreateLogStream",
-  "logs:CreateLogGroup",
-  "logs:PutLogEvents",
-];
+const shouldSimplify = (s) => {
+  /**
+   * The resources for polices that define these permissions will be 'simplified'
+   */
+  const LOG_ACTIONS_TO_SIMPLIFY = [
+    "logs:CreateLogStream",
+    "logs:CreateLogGroup",
+    "logs:PutLogEvents",
+  ];
+
+  return (
+    s.Effect === "Allow" &&
+    s.Action.every((action) => LOG_ACTIONS_TO_SIMPLIFY.includes(action))
+  );
+};
 
 class SimplifyDefaultExecRole {
   constructor(serverless) {
@@ -35,47 +48,28 @@ function simplifyBaseIAMLogGroups(serverless) {
   if (
     resourceSection.IamRoleLambdaExecution &&
     resourceSection.IamRoleLambdaExecution.Properties &&
-    Array.isArray(resourceSection.IamRoleLambdaExecution.Properties.Policies) &&
-    resourceSection.IamRoleLambdaExecution.Properties.Policies.length
+    Array.isArray(resourceSection.IamRoleLambdaExecution.Properties.Policies)
   ) {
     // parse all existing policies from the lambda role
-    const policies = resourceSection.IamRoleLambdaExecution.Properties.Policies;
+    resourceSection.IamRoleLambdaExecution.Properties.Policies.forEach((p) => {
+      if (p.PolicyDocument && Array.isArray(p.PolicyDocument.Statement)) {
+        const nStatement = [];
+        for (const s of p.PolicyDocument.Statement) {
+          if (shouldSimplify(s)) {
+            s.Resource = [
+              {
+                "Fn::Sub":
+                  "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*",
+              },
+            ];
+          }
 
-    // find all indexes of policies that define permissions for CloudWatch log groups
-    const cloudWatchLogPolicyIndexes = policies.reduce((acc, p, idx) => {
-      if (
-        p.PolicyDocument &&
-        p.PolicyDocument.Statement &&
-        p.PolicyDocument.Statement.Effect === "Allow" &&
-        Array.isArray(p.PolicyDocument.Statement.Action) &&
-        p.PolicyDocument.Statement.Action.every((action) =>
-          LOG_ACTIONS_TO_SIMPLIFY.includes(action)
-        )
-      ) {
-        acc.push(idx);
+          nStatement.push(s);
+        }
+
+        p.PolicyDocument.Statement = nStatement;
       }
-
-      return acc;
-    }, []);
-
-    if (cloudWatchLogPolicyIndexes.length > 0) {
-      for (const idx of cloudWatchLogPolicyIndexes) {
-        policies[idx] = {
-          ...policies[idx],
-          /*
-            Apply the permission to *any* log group part of the same region and account
-          */
-          Resource: [
-            {
-              "Fn::Sub":
-                "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*",
-            },
-          ],
-        };
-      }
-
-      resourceSection.IamRoleLambdaExecution.Properties.Policies = policies;
-    }
+    });
   }
 }
 
