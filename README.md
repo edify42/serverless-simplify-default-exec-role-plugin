@@ -2,10 +2,10 @@
 
 ** This is a fork of [serverless-simplify-default-exec-role-plugin](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin) by [shelfio](https://github.com/shelfio) **
 
-A quick solution for the error `Maximum policy size of 10240 bytes exceeded` error.
+A quick solution for the `IamRoleLambdaExecution` error: `Maximum policy size of 10240 bytes exceeded`.
 
 - This plugin modifies the `IamRoleLambdaExecution` policy to reduce its size.  
-- Unlike the [original version](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin), this maintains any custom IAM statements attached to the Lambda role. 
+- Unlike the [original version](https://www.npmjs.com/package/@shelf/serverless-simplify-default-exec-role-plugin), this maintains any custom IAM statements attached to the Lambda role. 
 - It also doesn't collapse `"logs:CreateLogStream"`, `"logs:CreateLogGroup"`, and `"logs:PutLogEvents"` permissions into the same IAM statement.
 
 ## Installation
@@ -25,7 +25,7 @@ plugins:
 
 ## More info
 
-By default the Serverless framework adds something like the IAM statement below in order to allow write access to CloudWatch log groups that are part of the deployment stack. For every large stacks, this can cause the role to exceed the maximum allowed size of 10240 bytes. This plugin reduces the size of the generated lambda role by replacing the resource list with a single ARN to grants write access to _all_ log groups that are part of the same region and account.
+By default the Serverless framework adds something like the IAM statement below in order to allow write access to CloudWatch log groups that are part of the deployment stack. For stacks with a lot of lambda functions, this can cause the role to exceed the maximum allowed size of 10240 bytes. This plugin reduces the size of the generated lambda role by replacing the resource list with a single ARN to grants write access to _all_ log groups that are part of the same region and account.
 
 ### Before
 ```json5
