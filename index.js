@@ -9,11 +9,13 @@
 const shouldSimplify = (s) => {
   /**
    * The resources for polices that define these permissions will be 'simplified'
+   * source: https://www.serverless.com/framework/docs/providers/aws/guide/iam
    */
   const LOG_ACTIONS_TO_SIMPLIFY = [
     "logs:CreateLogStream",
     "logs:CreateLogGroup",
     "logs:PutLogEvents",
+    "logs:TagResource",
   ];
 
   return (
