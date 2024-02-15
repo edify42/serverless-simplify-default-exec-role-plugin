@@ -1,6 +1,8 @@
 # serverless-simplify-default-exec-role-plugin
 
-** This is a fork of [serverless-simplify-default-exec-role-plugin](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin) by [shelfio](https://github.com/shelfio) **
+** This is a fork of [serverless-simplify-default-exec-role-plugin](https://github.com/woebot/serverless-simplify-default-exec-role-plugin) by [woebot](https://github.com/woebot)
+
+which in itself was a fork of [serverless-simplify-default-exec-role-plugin](https://github.com/shelfio/serverless-simplify-default-exec-role-plugin) by [shelfio](https://github.com/shelfio) **
 
 A quick solution for the `IamRoleLambdaExecution` error: `Maximum policy size of 10240 bytes exceeded`.
 
@@ -11,7 +13,7 @@ A quick solution for the `IamRoleLambdaExecution` error: `Maximum policy size of
 ## Installation
 
 ```
-$ npm install --dev @woebot/serverless-simplify-default-exec-role-plugin
+$ npm install --dev @lendi/serverless-simplify-default-exec-role-plugin
 ```
 
 ## Usage
@@ -20,10 +22,10 @@ In your `serverless.yml` file:
 
 ```yaml
 plugins:
-  - "@woebot/serverless-simplify-default-exec-role-plugin"
+  - "@lendi/serverless-simplify-default-exec-role-plugin"
 ```
 
-## More info
+## IAM simplification for `logs:` statements
 
 By default the Serverless framework adds something like the IAM statement below in order to allow write access to CloudWatch log groups that are part of the deployment stack. For stacks with a lot of lambda functions, this can cause the role to exceed the maximum allowed size of 10240 bytes. This plugin reduces the size of the generated lambda role by replacing the resource list with a single ARN to grants write access to _all_ log groups that are part of the same region and account.
 
@@ -60,6 +62,62 @@ By default the Serverless framework adds something like the IAM statement below 
   ],
 }
 ```
+
+## IAM simplification for `kinesis:*` statements
+
+**Needs more testing**
+
+When you attach a kinesis stream as an event source, it creates an IAM policy per kinesis stream
+
+### Before
+```json5
+{
+    "Effect": "Allow",
+    "Action": [
+        "kinesis:GetRecords",
+        "kinesis:GetShardIterator",
+        "kinesis:DescribeStreamSummary",
+        "kinesis:ListShards"
+    ],
+    "Resource": [
+        "arn:aws:kinesis:<region>:<account>:stream/<stream-name>"
+    ]
+},
+...many depending on number of input events to lambdas
+{
+    "Effect": "Allow",
+    "Action": [
+        "kinesis:GetRecords",
+        "kinesis:GetShardIterator",
+        "kinesis:DescribeStreamSummary",
+        "kinesis:ListShards"
+    ],
+    "Resource": [
+        "arn:aws:kinesis:<region>:<account>:stream/<stream-name>"
+    ]
+},
+```
+
+### After
+
+```json5
+{
+    "Effect": "Allow",
+    "Action": [
+        "kinesis:GetRecords",
+        "kinesis:GetShardIterator",
+        "kinesis:DescribeStreamSummary",
+        "kinesis:ListShards"
+    ],
+    "Resource": [
+        "arn:aws:kinesis:<region>:<account>:stream/<stream-name>"
+    ]
+},
+```
+
+## tests
+
+We have every intention of creating more tests to validate this plugin...
 
 ## License
 
